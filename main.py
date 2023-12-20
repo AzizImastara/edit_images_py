@@ -5,7 +5,7 @@ import cv2
 import os
 
 UPLOAD_FOLDER = 'uploads'
-ALLOWED_EXTENSIONS = {'png', 'webp', 'jpg', 'jpeg', 'gif'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 
 app = Flask(__name__)
 app.secret_key = 'super secret key'
@@ -33,6 +33,24 @@ def cartoon_filter(img):
 
     return cartoon
 
+def sketch_pencil_filter(img, brightness_factor=256.0):
+    # Convert the image to grayscale
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    # Invert the grayscale image
+    inverted_gray = cv2.bitwise_not(gray)
+
+    # Apply a Gaussian blur
+    blurred = cv2.GaussianBlur(inverted_gray, (111, 111), 0)
+
+    # Invert the blurred image
+    inverted_blurred = cv2.bitwise_not(blurred)
+
+    # Sketch pencil effect by blending the original and inverted blurred images
+    sketch_pencil = cv2.divide(gray, inverted_blurred, scale=brightness_factor)
+
+    return cv2.cvtColor(sketch_pencil, cv2.COLOR_GRAY2BGR)
+
 def processImage(filename, operation):
     print(f"the operation is {operation} and filename is {filename}")
     img = cv2.imread(f"uploads/{filename}")
@@ -41,18 +59,6 @@ def processImage(filename, operation):
             imgProcessed = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             newFilename = f"static/{filename.split('.')[0]}_gray.png"
             cv2.imwrite(newFilename, imgProcessed)
-            return newFilename
-        case "cwebp": 
-            newFilename = f"static/{filename.split('.')[0]}.webp"
-            cv2.imwrite(newFilename, img)
-            return newFilename
-        case "cjpg": 
-            newFilename = f"static/{filename.split('.')[0]}.jpg"
-            cv2.imwrite(newFilename, img)
-            return newFilename
-        case "cpng": 
-            newFilename = f"static/{filename.split('.')[0]}.png"
-            cv2.imwrite(newFilename, img)
             return newFilename
         case "cred":
             imgProcessed = img.copy()
@@ -64,6 +70,12 @@ def processImage(filename, operation):
         case "ccartoon":
             imgProcessed = cartoon_filter(img)
             newFilename = f"static/{filename.split('.')[0]}_cartoon.jpg"
+            cv2.imwrite(newFilename, imgProcessed)
+            return newFilename
+        case "csketch":
+            brightness_factor = 200.0  # Adjust this value to control brightness (default is 256.0)
+            imgProcessed = sketch_pencil_filter(img, brightness_factor)
+            newFilename = f"static/{filename.split('.')[0]}_sketch.jpg"
             cv2.imwrite(newFilename, imgProcessed)
             return newFilename
 
