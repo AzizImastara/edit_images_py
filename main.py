@@ -3,6 +3,8 @@ from flask import Flask, render_template, request, flash
 from werkzeug.utils import secure_filename
 import cv2
 import os
+import numpy as np
+from matplotlib import pyplot as plt
 
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
@@ -51,6 +53,32 @@ def sketch_pencil_filter(img, brightness_factor=256.0):
 
     return cv2.cvtColor(sketch_pencil, cv2.COLOR_GRAY2BGR)
 
+def chroma_key(img):
+    # Baca gambar
+    image = img
+
+    # Konversi gambar ke format HSV
+    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+
+    # Tentukan batas bawah dan atas untuk warna hijau (background)
+    lower_green = np.array([40, 40, 40])
+    upper_green = np.array([80, 255, 255])
+
+    # Buat mask dengan menggunakan inRange
+    mask = cv2.inRange(hsv, lower_green, upper_green)
+
+    # Invert mask agar bagian yang akan dihapus menjadi putih
+    inverted_mask = cv2.bitwise_not(mask)
+
+    # Buat saluran alpha (transparansi)
+    alpha_channel = np.ones(mask.shape, dtype=mask.dtype) * 255
+    
+    result = cv2.merge((image, alpha_channel))
+    result[:, :, 3] = inverted_mask
+    
+    return result
+
+
 def processImage(filename, operation):
     print(f"the operation is {operation} and filename is {filename}")
     img = cv2.imread(f"uploads/{filename}")
@@ -78,6 +106,12 @@ def processImage(filename, operation):
             newFilename = f"static/{filename.split('.')[0]}_sketch.jpg"
             cv2.imwrite(newFilename, imgProcessed)
             return newFilename
+        case "crmbg" :
+            imgProcessed = chroma_key(img)
+            newFilename = f"static/{filename.split('.')[0]}_rmbg.png"
+            cv2.imwrite(newFilename, imgProcessed)
+            return newFilename
+            
 
 @app.route("/")
 def home():
